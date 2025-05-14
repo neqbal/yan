@@ -5,5 +5,10 @@ class Main {
       Disassembler dis = new Disassembler(args[1]);
       dis.disass();
     }
+
+    if (args[0].equals("-i")) {
+      Interpreter inter = new Interpreter(args[1]);
+      inter.start();
+    }
   }
 }

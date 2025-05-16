@@ -33,7 +33,6 @@ public class Machine {
     conf_DescSyscall.put(0x02, Syscall.exit);
 
 
-
     conf_DescFlag.put(0x01, Flag.l);
     conf_DescFlag.put(0x10, Flag.g);
     conf_DescFlag.put(0x04, Flag.e);

@@ -21,9 +21,19 @@ public class Machine {
   Map<Integer, Flag> conf_DescFlag = new HashMap<>(); 
 
   Map<InstructionByte, Integer> conf_InsByte = new HashMap<>();
-
+  
+  Map<Integer, Syscall> conf_DescSyscall = new HashMap<>();
   public Machine() {
     
+    conf_DescSyscall.put(0x08, Syscall.open);
+    conf_DescSyscall.put(0x20, Syscall.read_code);
+    conf_DescSyscall.put(0x04, Syscall.read_memory);
+    conf_DescSyscall.put(0x01, Syscall.write);
+    conf_DescSyscall.put(0x10, Syscall.sleep);
+    conf_DescSyscall.put(0x02, Syscall.exit);
+
+
+
     conf_DescFlag.put(0x01, Flag.l);
     conf_DescFlag.put(0x10, Flag.g);
     conf_DescFlag.put(0x04, Flag.e);

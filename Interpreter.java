@@ -1,11 +1,12 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Scanner;
 
 public class Interpreter {
 
   byte[] ByteCode;
-  byte[] vmMemory = new byte[0x420];
+  int[] vmMemory = new int[0x420];
 
   Machine machine;
 
@@ -29,49 +30,150 @@ public class Interpreter {
       interpret_instruction(i);
     } while(false);
   }
+  
+  void write_register(Machine.Register reg, int val) {
+    vmMemory[0x400 + machine.conf_RegOffset.get(reg)] = val;
+  }
 
   void write_memory(int offset, int val) {
     vmMemory[0x300 + offset] = (byte) val;
   }
-  
-  public void interpret_imm(Machine.Register reg, int imm) {
-    System.out.println(reg + " " + imm);
-    vmMemory[0x400 + machine.conf_RegOffset.get(reg)] = (byte) imm;
-  }
-  
-  public void interpret_add(Machine.Register reg1, Machine.Register reg2) {
-    System.out.println(reg1 + " " + reg2);
-    vmMemory[0x400 + machine.conf_RegOffset.get(reg1)] = (byte) (vmMemory[0x400 + machine.conf_RegOffset.get(reg1)] + vmMemory[0x400 + machine.conf_RegOffset.get(reg2)]);
+
+  int read_register(Machine.Register reg) {
+    return vmMemory[0x400 + machine.conf_RegOffset.get(reg)];
   }
 
-  public void interpret_stk(Machine.Register reg1, Machine.Register reg2) {
-    int stkPtr = vmMemory[0x400 + machine.conf_RegOffset.get(Machine.Register.s)]&0xFF;
+  int read_memory(int offset) {
+    return vmMemory[0x300 + offset];
+  }
+  
+  void interpret_imm(Machine.Register reg, int imm) {
+    System.out.println(reg + " " + imm);
+    write_register(reg, imm);
+  }
+  
+  void interpret_add(Machine.Register reg1, Machine.Register reg2) {
+    System.out.println(reg1 + " " + reg2);
+
+    int val1 = read_register(reg1);
+    int val2 = read_register(reg2);
+
+    write_register(reg1, val1 + val2);
+  }
+
+  void interpret_stk(Machine.Register reg1, Machine.Register reg2) {
+    int stkPtr = read_register(Machine.Register.s);
 
     if(reg2 != Machine.Register.NONE) {
-      vmMemory[0x300 + stkPtr ] = vmMemory[0x400 + machine.conf_RegOffset.get(reg2)];
+      write_memory(stkPtr, read_register(reg2)); 
     }
 
     if(reg1 != Machine.Register.NONE) {
-      vmMemory[0x400 + machine.conf_RegOffset.get(reg1)] = vmMemory[0x300 + stkPtr];
-      vmMemory[0x400 + machine.conf_RegOffset.get(Machine.Register.s)] -= 1;
+      write_register(reg1, read_memory(stkPtr));
+      write_register(Machine.Register.s, stkPtr+1);
     }
   }
 
   void interpret_stm(Machine.Register reg1, Machine.Register reg2) {
-    int offset = vmMemory[0x400 + machine.conf_RegOffset.get(reg1)]&0xFF;
-
-    vmMemory[0x300 + offset] = vmMemory[0x400 + machine.conf_RegOffset.get(reg2)];  
+    int offset = read_register(reg1);
+    int val = read_register(reg2);
+    write_memory(offset, val);
   }
 
+  void interpret_ldm(Machine.Register reg1, Machine.Register reg2) {
+    int offset = read_register(reg2);
+    int val = read_memory(offset);
+    write_register(reg1, val);
+  }
+
+  void interpret_cmp(Machine.Register reg1, Machine.Register reg2) {
+    int val1 = read_register(reg1);
+    int val2 = read_register(reg2);
+  
+    if(val1 < val2) {
+      int flag = read_register(Machine.Register.f);
+      write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.l));
+    }
+
+    if(val1 > val2) {
+      int flag = read_register(Machine.Register.f);
+      write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.g));
+    }
+
+    if(val1 == val2) {
+      int flag = read_register(Machine.Register.f);
+      write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.e));
+    }
+
+    if(val1 != val2) {
+      int flag = read_register(Machine.Register.f);
+      write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.n));
+    }
+
+    if(val1 == 0 && val2 == 0) {
+      int flag = read_register(Machine.Register.f);
+      write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.z));
+    }
+  }
+
+  boolean interpret_jmp(int cond, Machine.Register reg) {
+    int flag = read_register(Machine.Register.f);
+    int label = read_register(reg);
+    if(cond == 0 || (flag & cond) != 0 ) {
+      write_register(Machine.Register.i, label);
+      return true;
+    } 
+
+    return false;
+  }
+
+  void interpret_sys(int sysType, Machine.Register reg) {
+    int val = read_register(reg);
+    Machine.Syscall sys = machine.conf_DescSyscall.get(sysType);
+
+    int a = read_register(Machine.Register.a);
+    int b = read_register(Machine.Register.b);
+    int c = read_register(Machine.Register.c);
+    int i;
+
+    switch(sys) {
+      case Machine.Syscall.open:
+        break;
+      case Machine.Syscall.read_code:
+        break;
+      case Machine.Syscall.read_memory:
+
+        Scanner sc = new Scanner(System.in);
+        String buff = sc.next();
+        for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
+          vmMemory[0x300 + b + i] = buff.charAt(i);
+        } 
+        sc.close();
+
+        write_register(reg, i);
+        break;
+      case Machine.Syscall.write:
+        for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
+          System.out.print(vmMemory[0x300 + b + i] + " ");
+        } 
+        System.out.println();
+        break;
+      case Machine.Syscall.sleep:
+        break;
+      case Machine.Syscall.exit:
+        System.exit(a); 
+        break;
+    }
+  }
   public void interpret_instruction(int i) {
     display_register();
     int opcodeOffset = machine.conf_InsByte.get(Machine.InstructionByte.opcode);
     int param1Offset = machine.conf_InsByte.get(Machine.InstructionByte.param1);
     int param2Offset = machine.conf_InsByte.get(Machine.InstructionByte.param2);
 
-    byte opcode = vmMemory[i + opcodeOffset];
-    byte param1 = vmMemory[i + param1Offset];
-    byte param2 = vmMemory[i + param2Offset];
+    int opcode = vmMemory[i + opcodeOffset];
+    int param1 = vmMemory[i + param1Offset];
+    int param2 = vmMemory[i + param2Offset];
 
     System.out.printf("op:0x%02x param1:0x%02x param2:0x%02x\n", opcode, param1, param2);
     Machine.Instruction ins = machine.conf_DescInstruction.get(opcode & 0xFF);
@@ -83,6 +185,7 @@ public class Interpreter {
         break;
       
       case Machine.Instruction.SYS:
+        interpret_sys(param1&0xFF, machine.conf_DescRegister.getOrDefault(param2 & 0xFF, Machine.Register.NONE));
         System.out.print(String.format("0x%02x", param1) + " ");
         System.out.println(machine.conf_DescRegister.getOrDefault(param2 & 0xFF, Machine.Register.NONE));
         break;
@@ -91,37 +194,16 @@ public class Interpreter {
         interpret_stk(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
         break;
       case Machine.Instruction.STM:
-        System.out.print("*"+machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE) + " ");
-        System.out.println(machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE) + " ");
+        interpret_stm(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
         break;
       case Machine.Instruction.LDM:
-        System.out.print(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE) + " ");
-        System.out.println("*" + machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE) + " ");
+        interpret_ldm(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
         break;
       case Machine.Instruction.JMP:
-        StringBuilder sb = new StringBuilder();
-
-        if( ((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.l)) == 0) {
-          sb.append(Machine.Flag.l); 
-        } else if(((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.g)) == 0) {
-          sb.append(Machine.Flag.g);
-        } else if(((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.e)) == 0) {
-          sb.append(Machine.Flag.e);
-        } else if(((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.n)) == 0) {
-          sb.append(Machine.Flag.n);
-        } else if(((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.z)) == 0) {
-          sb.append(Machine.Flag.z); 
-        } else if(((param1&0xFF)&machine.conf_FlagOffset.get(Machine.Flag.astr)) == 0) {
-          sb.append("*");
-        }
-
-        System.out.print(sb.toString() + " ");
-        System.out.println(machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
-        
+        interpret_jmp(param1&0xFF, machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
         break;
       case Machine.Instruction.CMP:
-        System.out.print(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE) + " ");
-        System.out.println(machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
+        interpret_cmp(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
         break;
       case Machine.Instruction.ADD:
         interpret_add(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));

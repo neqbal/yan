@@ -16,7 +16,7 @@ public class Interpreter {
       ByteCode = Files.readAllBytes(Path.of(file));
 
       for(int i=0; i<ByteCode.length; i++) {
-        vmMemory[i] = ByteCode[i];
+        vmMemory[i] = ByteCode[i]&0xFF;
       }
     } catch (IOException e) {
       System.err.println(e);
@@ -27,8 +27,8 @@ public class Interpreter {
     do {
       int i = vmMemory[0x405]&0xFF;
       vmMemory[0x405] = (byte) (i + 1);
-      interpret_instruction(i);
-    } while(false);
+      interpret_instruction(i*3);
+    } while(true);
   }
   
   void write_register(Machine.Register reg, int val) {
@@ -143,14 +143,15 @@ public class Interpreter {
         break;
       case Machine.Syscall.read_memory:
 
-        Scanner sc = new Scanner(System.in);
-        String buff = sc.next();
-        for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
-          vmMemory[0x300 + b + i] = buff.charAt(i);
-        } 
-        sc.close();
-
+        try (Scanner sc = new Scanner(System.in)) {
+          String buff = sc.next();
+          for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
+            vmMemory[0x300 + b + i] = buff.charAt(i);
+          } 
+          sc.close();
+        }
         write_register(reg, i);
+
         break;
       case Machine.Syscall.write:
         for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
@@ -165,6 +166,11 @@ public class Interpreter {
         break;
     }
   }
+  
+  Machine.Register describe_register(int a) {
+    return machine.conf_DescRegister.getOrDefault(a, Machine.Register.NONE);
+  }
+
   public void interpret_instruction(int i) {
     display_register();
     int opcodeOffset = machine.conf_InsByte.get(Machine.InstructionByte.opcode);
@@ -178,23 +184,34 @@ public class Interpreter {
     System.out.printf("op:0x%02x param1:0x%02x param2:0x%02x\n", opcode, param1, param2);
     Machine.Instruction ins = machine.conf_DescInstruction.get(opcode & 0xFF);
     System.out.print(ins + " ");
-
+    
+    Machine.Register reg1 = Machine.Register.NONE;
+    Machine.Register reg2 = Machine.Register.NONE;
     switch(ins) {
       case Machine.Instruction.IMM:
-        interpret_imm(machine.conf_DescRegister.get(param1 & 0xFF), param2&0xFF);
+        reg1 = describe_register(param1);
+        System.out.println(reg1 + " " + param2);
+        interpret_imm(reg1, param2);
         break;
-      
+
       case Machine.Instruction.SYS:
+        reg1 = describe_register(param2);
         interpret_sys(param1&0xFF, machine.conf_DescRegister.getOrDefault(param2 & 0xFF, Machine.Register.NONE));
         System.out.print(String.format("0x%02x", param1) + " ");
         System.out.println(machine.conf_DescRegister.getOrDefault(param2 & 0xFF, Machine.Register.NONE));
         break;
 
       case Machine.Instruction.STK:
-        interpret_stk(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
+        reg1 = describe_register(param1);
+        reg2 = describe_register(param2); 
+        System.out.println(reg1 + " " + reg2);
+        interpret_stk(reg1, reg2);
         break;
       case Machine.Instruction.STM:
-        interpret_stm(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
+        reg1 = describe_register(param1);
+        reg2 = describe_register(param2);
+        System.out.println(reg1 + " " + reg2);
+        interpret_stm(reg1, reg2);
         break;
       case Machine.Instruction.LDM:
         interpret_ldm(machine.conf_DescRegister.getOrDefault(param1&0xFF, Machine.Register.NONE), machine.conf_DescRegister.getOrDefault(param2&0xFF, Machine.Register.NONE));
@@ -213,7 +230,7 @@ public class Interpreter {
   }
 
   void display_register() {
-    System.out.printf("a:0x%02x b:0x%02x c:0x%02x d:0x%02x s:0x%02x i:0x%02x f:0x%02x",
+    System.out.printf("a:0x%02x b:0x%02x c:0x%02x d:0x%02x s:0x%02x i:0x%02x f:0x%02x\n",
     vmMemory[0x400], vmMemory[0x401], vmMemory[0x402], vmMemory[0x403], vmMemory[0x404], vmMemory[0x405], vmMemory[0x406]);
   }
 }

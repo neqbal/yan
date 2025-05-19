@@ -258,8 +258,21 @@ public class Interpreter {
 
   }
 
+  public static final String RESET  = "\u001B[0m";
+  public static final String RED    = "\u001B[31m";
+  public static final String GREEN  = "\u001B[32m";
+  public static final String YELLOW = "\u001B[33m";
+  public static final String BLUE   = "\u001B[34m";
+  public static final String PURPLE = "\u001B[35m";
+  public static final String CYAN   = "\u001B[36m";
+  public static final String WHITE  = "\u001B[37m";
   void display_register() {
-    System.out.printf("a:0x%02x b:0x%02x c:0x%02x d:0x%02x s:0x%02x i:0x%02x f:0x%02x\n",
-    vmMemory[0x400], vmMemory[0x401], vmMemory[0x402], vmMemory[0x403], vmMemory[0x404], vmMemory[0x405], vmMemory[0x406]);
+    System.out.printf(RED + "a:0x%02x " + RESET, vmMemory[0x400]); 
+    System.out.printf(GREEN + "b:0x%02x " + RESET, vmMemory[0x401]); 
+    System.out.printf(YELLOW + "c:0x%02x " + RESET, vmMemory[0x402]);
+    System.out.printf(BLUE + "d:0x%02x " + RESET, vmMemory[0x403]);
+    System.out.printf(PURPLE + "s:0x%02x " + RESET, vmMemory[0x404]);
+    System.out.printf(CYAN + "i:0x%02x " + RESET, vmMemory[0x405]);
+    System.out.printf(WHITE + "f:0x%02x\n" + RESET,vmMemory[0x406]);
   }
 }

@@ -7,6 +7,9 @@ public class Debugger {
     intp = new Interpreter(file, mem);
   }
 
+  public static final String RESET  = "\u001B[0m";
+  public static final String RED    = "\u001B[31m";
+  public static final String BLUE   = "\u001B[34m";
   void start() {
     System.out.println("Debugger started");
     Scanner sc = new Scanner(System.in); // Open scanner once
@@ -14,7 +17,7 @@ public class Debugger {
     String cmd = "";
     String[] cmdList = new String[3];
     while (true) {
-      System.out.print("ydbg> ");
+      System.out.print(RED + "ydbg> " + RESET);
 
       try {
         cmd = sc.nextLine(); // Read next token
@@ -54,7 +57,8 @@ public class Debugger {
 
     intp.write_memory(offset, val);
 
-    System.out.printf("0x%02x: 0x%02x\n", offset, intp.read_memory(0, offset));
+    System.out.printf(BLUE + "0x%02x:" + RESET, offset); 
+    System.out.printf("0x%02x\n", intp.read_memory(0, offset));
   }
 
   void display_memory(String[] cmdList) {

@@ -6,28 +6,40 @@ import java.util.Scanner;
 public class Interpreter {
 
   byte[] ByteCode;
+  byte[] Mem;
   int[] vmMemory = new int[0x420];
 
   Machine machine;
 
-  Interpreter(String file) {
+  Interpreter(String file, String mem) {
     machine = new Machine();
     try {
       ByteCode = Files.readAllBytes(Path.of(file));
+      Mem = Files.readAllBytes(Path.of(mem));
 
       for(int i=0; i<ByteCode.length; i++) {
         vmMemory[i] = ByteCode[i]&0xFF;
       }
+      
+      for(int i=0; i<Mem.length; i++) {
+        vmMemory[i + 0x300] = Mem[i]&0xFF;
+      }
+      
     } catch (IOException e) {
       System.err.println(e);
     }
   }
+  
+  int get_next_ins() {
+    int i = vmMemory[0x405] & 0xFF;
+    vmMemory[0x405] = i+1;
 
+    return i*3;
+  }
   public void start() {
     do {
-      int i = vmMemory[0x405]&0xFF;
-      vmMemory[0x405] = i + 1;
-      interpret_instruction(i*3);
+      int i = get_next_ins();
+      interpret_instruction(i);
     } while(true);
   }
   
@@ -43,8 +55,8 @@ public class Interpreter {
     return vmMemory[0x400 + machine.conf_RegOffset.get(reg)];
   }
 
-  int read_memory(int offset) {
-    return vmMemory[0x300 + offset];
+  int read_memory(int base,int offset) {
+    return vmMemory[base + offset];
   }
   
   void interpret_imm(Machine.Register reg, int imm) {
@@ -62,12 +74,14 @@ public class Interpreter {
   void interpret_stk(Machine.Register reg1, Machine.Register reg2) {
 
     if(reg2 != Machine.Register.NONE) {
+      System.out.println("..pushing " + reg2);
       write_register(Machine.Register.s, read_register(Machine.Register.s)+1);
       write_memory(read_register(Machine.Register.s), read_register(reg2)); 
     }
 
     if(reg1 != Machine.Register.NONE) {
-      write_register(reg1, read_memory(read_register(Machine.Register.s)));
+      System.out.println("..popping " + reg1);
+      write_register(reg1, read_memory(0x300, read_register(Machine.Register.s)));
       write_register(Machine.Register.s, read_register(Machine.Register.s)-1);
     }
   }
@@ -80,7 +94,7 @@ public class Interpreter {
 
   void interpret_ldm(Machine.Register reg1, Machine.Register reg2) {
     int offset = read_register(reg2);
-    int val = read_memory(offset);
+    int val = read_memory(0x300, offset);
     write_register(reg1, val);
   }
 
@@ -125,13 +139,19 @@ public class Interpreter {
     return false;
   }
 
+  Scanner sc = null;
+
+  void setScanner(Scanner sc) {
+    this.sc = sc;
+  }
+
   void interpret_sys(int sysType, Machine.Register reg) {
     Machine.Syscall sys = machine.conf_DescSyscall.get(sysType);
 
     int a = read_register(Machine.Register.a);
     int b = read_register(Machine.Register.b);
     int c = read_register(Machine.Register.c);
-    int i;
+    int i = 0;
 
     switch(sys) {
       case Machine.Syscall.open:
@@ -140,19 +160,21 @@ public class Interpreter {
         break;
       case Machine.Syscall.read_memory:
 
-        try (Scanner sc = new Scanner(System.in)) {
+        try {
+          if(sc == null) sc = new Scanner(System.in);
           String buff = sc.next();
           for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ) && i < buff.length() ; i++) {
             vmMemory[0x300 + b + i] = buff.charAt(i);
           } 
-          sc.close();
+        } catch (Exception e) {
+          System.err.print(e);
         }
         write_register(reg, i);
 
         break;
       case Machine.Syscall.write:
         for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
-          System.out.print(vmMemory[0x300 + b + i] + " ");
+          System.out.print((char) vmMemory[0x300 + b + i] + " ");
         } 
         System.out.println();
         break;
@@ -193,9 +215,8 @@ public class Interpreter {
 
       case Machine.Instruction.SYS:
         reg1 = describe_register(param2);
+        System.out.println(String.format("0x%02x", param1) + " " + reg1);
         interpret_sys(param1&0xFF, reg1);
-        System.out.print(String.format("0x%02x", param1) + " ");
-        System.out.println(machine.conf_DescRegister.getOrDefault(param2 & 0xFF, Machine.Register.NONE));
         break;
 
       case Machine.Instruction.STK:

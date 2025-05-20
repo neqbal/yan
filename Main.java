@@ -1,10 +1,9 @@
 class Main {
 
   public static void main(String[] args) {
-      Disassembler dis = new Disassembler("output.txt");
-      dis.disass();
     if (args[0].equals("-d")) {
-
+      Disassembler dis = new Disassembler(args[1]);
+      dis.disass();
     }
 
     if (args[0].equals("-i")) {
@@ -18,7 +17,7 @@ class Main {
     }
 
     if(args[0].equals("-a")) {
-      Assembler ass = new Assembler("read_flag.yan");
+      Assembler ass = new Assembler(args[1]);
       ass.start();
     }
   }

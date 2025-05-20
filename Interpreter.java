@@ -155,6 +155,7 @@ public class Interpreter {
 
     switch(sys) {
       case Machine.Syscall.open:
+         
         break;
       case Machine.Syscall.read_code:
         break;

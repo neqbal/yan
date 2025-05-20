@@ -47,7 +47,6 @@ public class Debugger {
 
     sc.close();
 
-    // Optional: sc.close(); // You may close it here if the loop ends
   }
   
   void overwrite(String[] cmdList) {
@@ -58,7 +57,7 @@ public class Debugger {
     intp.write_memory(offset, val);
 
     System.out.printf(BLUE + "0x%02x:" + RESET, offset); 
-    System.out.printf("0x%02x\n", intp.read_memory(0, offset));
+    System.out.printf("0x%02x\n", intp.read_memory(0x300, offset));
   }
 
   void display_memory(String[] cmdList) {

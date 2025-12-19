@@ -17,32 +17,33 @@ public class Interpreter {
       ByteCode = Files.readAllBytes(Path.of(file));
       Mem = Files.readAllBytes(Path.of(mem));
 
-      for(int i=0; i<ByteCode.length; i++) {
-        vmMemory[i] = ByteCode[i]&0xFF;
+      for (int i = 0; i < ByteCode.length; i++) {
+        vmMemory[i] = ByteCode[i] & 0xFF;
       }
-      
-      for(int i=0; i<Mem.length; i++) {
-        vmMemory[i + 0x300] = Mem[i]&0xFF;
+
+      for (int i = 0; i < Mem.length; i++) {
+        vmMemory[i + 0x300] = Mem[i] & 0xFF;
       }
-      
+
     } catch (IOException e) {
       System.err.println(e);
     }
   }
-  
+
   int get_next_ins() {
     int i = vmMemory[0x405] & 0xFF;
-    vmMemory[0x405] = i+1;
+    vmMemory[0x405] = i + 1;
 
-    return i*3;
+    return i * 3;
   }
+
   public void start() {
     do {
       int i = get_next_ins();
       interpret_instruction(i);
-    } while(true);
+    } while (true);
   }
-  
+
   void write_register(Machine.Register reg, int val) {
     vmMemory[0x400 + machine.conf_RegOffset.get(reg)] = val;
   }
@@ -55,34 +56,34 @@ public class Interpreter {
     return vmMemory[0x400 + machine.conf_RegOffset.get(reg)];
   }
 
-  int read_memory(int base,int offset) {
+  int read_memory(int base, int offset) {
     return vmMemory[base + offset];
   }
-  
+
   void interpret_imm(Machine.Register reg, int imm) {
     write_register(reg, imm);
   }
-  
+
   void interpret_add(Machine.Register reg1, Machine.Register reg2) {
 
     int val1 = read_register(reg1);
     int val2 = read_register(reg2);
 
-    write_register(reg1, (val1 + val2)&0xFF);
+    write_register(reg1, (val1 + val2) & 0xFF);
   }
 
   void interpret_stk(Machine.Register reg1, Machine.Register reg2) {
 
-    if(reg2 != Machine.Register.NONE) {
+    if (reg2 != Machine.Register.NONE) {
       System.out.println("..pushing " + reg2);
-      write_register(Machine.Register.s, read_register(Machine.Register.s)+1);
-      write_memory(read_register(Machine.Register.s), read_register(reg2)); 
+      write_register(Machine.Register.s, read_register(Machine.Register.s) + 1);
+      write_memory(read_register(Machine.Register.s), read_register(reg2));
     }
 
-    if(reg1 != Machine.Register.NONE) {
+    if (reg1 != Machine.Register.NONE) {
       System.out.println("..popping " + reg1);
       write_register(reg1, read_memory(0x300, read_register(Machine.Register.s)));
-      write_register(Machine.Register.s, read_register(Machine.Register.s)-1);
+      write_register(Machine.Register.s, read_register(Machine.Register.s) - 1);
     }
   }
 
@@ -102,27 +103,27 @@ public class Interpreter {
     int val1 = read_register(reg1);
     int val2 = read_register(reg2);
     write_register(Machine.Register.f, 0);
-    if(val1 < val2) {
+    if (val1 < val2) {
       int flag = read_register(Machine.Register.f);
       write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.l));
     }
 
-    if(val1 > val2) {
+    if (val1 > val2) {
       int flag = read_register(Machine.Register.f);
       write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.g));
     }
 
-    if(val1 == val2) {
+    if (val1 == val2) {
       int flag = read_register(Machine.Register.f);
       write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.e));
     }
 
-    if(val1 != val2) {
+    if (val1 != val2) {
       int flag = read_register(Machine.Register.f);
       write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.n));
     }
 
-    if(val1 == 0 && val2 == 0) {
+    if (val1 == 0 && val2 == 0) {
       int flag = read_register(Machine.Register.f);
       write_register(Machine.Register.f, flag | machine.conf_FlagOffset.get(Machine.Flag.z));
     }
@@ -131,10 +132,10 @@ public class Interpreter {
   boolean interpret_jmp(int cond, Machine.Register reg) {
     int flag = read_register(Machine.Register.f);
     int label = read_register(reg);
-    if(cond == 0 || (flag & cond) != 0 ) {
+    if (cond == 0 || (flag & cond) != 0) {
       write_register(Machine.Register.i, label);
       return true;
-    } 
+    }
 
     return false;
   }
@@ -153,20 +154,21 @@ public class Interpreter {
     int c = read_register(Machine.Register.c);
     int i = 0;
 
-    switch(sys) {
+    switch (sys) {
       case Machine.Syscall.open:
-         
+
         break;
       case Machine.Syscall.read_code:
         break;
       case Machine.Syscall.read_memory:
 
         try {
-          if(sc == null) sc = new Scanner(System.in);
+          if (sc == null)
+            sc = new Scanner(System.in);
           String buff = sc.next();
-          for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ) && i < buff.length() ; i++) {
+          for (i = 0; i < (0x100 - b <= c ? 0x100 - b : c) && i < buff.length(); i++) {
             vmMemory[0x300 + b + i] = buff.charAt(i);
-          } 
+          }
         } catch (Exception e) {
           System.err.print(e);
         }
@@ -174,19 +176,19 @@ public class Interpreter {
 
         break;
       case Machine.Syscall.write:
-        for(i=0; i<(0x100 - b <= c ? 0x100 - b : c ); i++) {
+        for (i = 0; i < (0x100 - b <= c ? 0x100 - b : c); i++) {
           System.out.print((char) vmMemory[0x300 + b + i] + " ");
-        } 
+        }
         System.out.println();
         break;
       case Machine.Syscall.sleep:
         break;
       case Machine.Syscall.exit:
-        System.exit(a); 
+        System.exit(a);
         break;
     }
   }
-  
+
   Machine.Register describe_register(int a) {
     return machine.conf_DescRegister.getOrDefault(a, Machine.Register.NONE);
   }
@@ -204,25 +206,25 @@ public class Interpreter {
     System.out.printf("op:0x%02x param1:0x%02x param2:0x%02x\n", opcode, param1, param2);
     Machine.Instruction ins = machine.conf_DescInstruction.get(opcode & 0xFF);
     System.out.print(ins + " ");
-    
+
     Machine.Register reg1 = Machine.Register.NONE;
     Machine.Register reg2 = Machine.Register.NONE;
-    switch(ins) {
+    switch (ins) {
       case Machine.Instruction.IMM:
         reg1 = describe_register(param1);
-        System.out.println(reg1 + " " + String.format("0x%02x",param2));
+        System.out.println(reg1 + " " + String.format("0x%02x", param2));
         interpret_imm(reg1, param2);
         break;
 
       case Machine.Instruction.SYS:
         reg1 = describe_register(param2);
         System.out.println(String.format("0x%02x", param1) + " " + reg1);
-        interpret_sys(param1&0xFF, reg1);
+        interpret_sys(param1 & 0xFF, reg1);
         break;
 
       case Machine.Instruction.STK:
         reg1 = describe_register(param1);
-        reg2 = describe_register(param2); 
+        reg2 = describe_register(param2);
         System.out.println(reg1 + " " + reg2);
         interpret_stk(reg1, reg2);
         break;
@@ -240,8 +242,8 @@ public class Interpreter {
         break;
       case Machine.Instruction.JMP:
         reg2 = describe_register(param2);
-        System.out.println(String.format("0x%02x",param1) + " " + reg2);
-        interpret_jmp(param1&0xFF, reg2);
+        System.out.println(String.format("0x%02x", param1) + " " + reg2);
+        interpret_jmp(param1 & 0xFF, reg2);
         break;
       case Machine.Instruction.CMP:
         reg1 = describe_register(param1);
@@ -259,21 +261,22 @@ public class Interpreter {
 
   }
 
-  public static final String RESET  = "\u001B[0m";
-  public static final String RED    = "\u001B[31m";
-  public static final String GREEN  = "\u001B[32m";
+  public static final String RESET = "\u001B[0m";
+  public static final String RED = "\u001B[31m";
+  public static final String GREEN = "\u001B[32m";
   public static final String YELLOW = "\u001B[33m";
-  public static final String BLUE   = "\u001B[34m";
+  public static final String BLUE = "\u001B[34m";
   public static final String PURPLE = "\u001B[35m";
-  public static final String CYAN   = "\u001B[36m";
-  public static final String WHITE  = "\u001B[37m";
+  public static final String CYAN = "\u001B[36m";
+  public static final String WHITE = "\u001B[37m";
+
   void display_register() {
-    System.out.printf(RED + "a:0x%02x " + RESET, vmMemory[0x400]); 
-    System.out.printf(GREEN + "b:0x%02x " + RESET, vmMemory[0x401]); 
+    System.out.printf(RED + "a:0x%02x " + RESET, vmMemory[0x400]);
+    System.out.printf(GREEN + "b:0x%02x " + RESET, vmMemory[0x401]);
     System.out.printf(YELLOW + "c:0x%02x " + RESET, vmMemory[0x402]);
     System.out.printf(BLUE + "d:0x%02x " + RESET, vmMemory[0x403]);
     System.out.printf(PURPLE + "s:0x%02x " + RESET, vmMemory[0x404]);
     System.out.printf(CYAN + "i:0x%02x " + RESET, vmMemory[0x405]);
-    System.out.printf(WHITE + "f:0x%02x\n" + RESET,vmMemory[0x406]);
+    System.out.printf(WHITE + "f:0x%02x\n" + RESET, vmMemory[0x406]);
   }
 }

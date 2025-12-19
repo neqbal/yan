@@ -1,19 +1,32 @@
 import java.util.HashMap;
 import java.util.Map;
 
-
 public class Machine {
   private static final RandomC randGen = new RandomC();
 
   public int getRandom() {
     return randGen.getRandom();
   }
-   
-  static enum Register { a, b, c, d, s, i, f, NONE};
-  static enum InstructionByte {opcode, param1, param2 }
-  static enum Instruction {IMM, ADD, STK, STM, LDM, CMP, JMP, SYS}
-  static enum Syscall {open, read_code, read_memory, write, sleep, exit}
-  static enum Flag {l, g, e, n, z, astr}
+
+  static enum Register {
+    a, b, c, d, s, i, f, NONE
+  };
+
+  static enum InstructionByte {
+    opcode, param1, param2
+  }
+
+  static enum Instruction {
+    IMM, ADD, STK, STM, LDM, CMP, JMP, SYS
+  }
+
+  static enum Syscall {
+    open, read_code, read_memory, write, sleep, exit
+  }
+
+  static enum Flag {
+    l, g, e, n, z, astr
+  }
 
   Map<Register, Integer> conf_RegOffset = new HashMap<>();
   Map<Integer, Register> conf_DescRegister = new HashMap<>();
@@ -23,17 +36,17 @@ public class Machine {
   Map<Instruction, Integer> conf_InstructionOP = new HashMap<>();
 
   Map<Flag, Integer> conf_FlagOffset = new HashMap<>();
-  Map<Integer, Flag> conf_DescFlag = new HashMap<>(); 
+  Map<Integer, Flag> conf_DescFlag = new HashMap<>();
 
   Map<InstructionByte, Integer> conf_InsByte = new HashMap<>();
-  
+
   Map<Integer, Syscall> conf_DescSyscall = new HashMap<>();
   Map<Syscall, Integer> conf_SyscallOP = new HashMap<>();
-  
-  int[] VALUES = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+
+  int[] VALUES = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
   void shuffleValues() {
-    for(int i=0; i<0xFFFF; i++) {
+    for (int i = 0; i < 0xFFFF; i++) {
       int a = getRandom();
       int b = getRandom();
       int c = VALUES[a % 8];
@@ -58,7 +71,7 @@ public class Machine {
     conf_DescRegister.put(VALUES[4], Register.s);
     conf_DescRegister.put(VALUES[5], Register.i);
     conf_DescRegister.put(VALUES[6], Register.f);
-    
+
     conf_RegisterOP.put(Register.a, VALUES[0]);
     conf_RegisterOP.put(Register.b, VALUES[1]);
     conf_RegisterOP.put(Register.c, VALUES[2]);
@@ -86,7 +99,7 @@ public class Machine {
     conf_DescInstruction.put(VALUES[5], Instruction.JMP);
     conf_DescInstruction.put(VALUES[6], Instruction.CMP);
     conf_DescInstruction.put(VALUES[7], Instruction.SYS);
-  
+
     conf_InstructionOP.put(Instruction.IMM, VALUES[0]);
     conf_InstructionOP.put(Instruction.STK, VALUES[1]);
     conf_InstructionOP.put(Instruction.ADD, VALUES[2]);
@@ -137,7 +150,7 @@ public class Machine {
   }
 
   public Machine() {
-    
+
     shuffleValues();
     initReg();
 
@@ -150,9 +163,8 @@ public class Machine {
     shuffleValues();
     initFlag();
 
-    
-    conf_InsByte.put(InstructionByte.opcode, 0);    
-    conf_InsByte.put(InstructionByte.param1, 1);    
-    conf_InsByte.put(InstructionByte.param2, 2);    
+    conf_InsByte.put(InstructionByte.opcode, 0);
+    conf_InsByte.put(InstructionByte.param1, 1);
+    conf_InsByte.put(InstructionByte.param2, 2);
   }
 }
